@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tool tạo bài viết girlxinh đa quốc gia</title>
+  <style>
+    body { font-family: Arial; max-width: 900px; margin: auto; padding: 20px; }
+    h2 { text-align: center; }
+    label { font-weight: bold; display: block; margin-top: 15px; }
+    input[type=text], select, textarea {
+      width: 100%; padding: 8px; margin-top: 5px;
+      border: 1px solid #ccc; border-radius: 4px;
+    }
+    textarea { height: 180px; font-family: monospace; resize: vertical; }
+    button {
+      margin-top: 15px; padding: 10px 20px; font-weight: bold;
+      background-color: #007bff; color: white; border: none; border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover { background-color: #0056b3; }
+    .dropzone {
+      border: 2px dashed #999; border-radius: 10px; padding: 30px;
+      text-align: center; color: #666; cursor: pointer; margin-top: 15px;
+    }
+    .dropzone.dragover { border-color: #333; color: #000; }
+    .image-preview { margin-top: 15px; text-align: center; }
+    .image-preview img { max-width: 100%; border-radius: 6px; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
+    .loading-modal {
+      background-color: rgba(255,255,255,.8);
+      display: none; position: fixed; z-index: 10000;
+      top: 0; left: 0; height: 100%; width: 100%;
+    }
+    .loading-modal.show {
+      display: block;
+    }
+    .loading-modal .loading-text {
+      position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 20px; color: #333; font-weight: bold;
+    }
+    .text-center { text-align: center; margin-top: 15px; }
+    .btnlook.download-wall {
+      padding: 10px 15px;
+      border: 1px solid #333;
+      border-radius: 5px;
+      text-decoration: none;
+      font-weight: bold;
+      display: inline-block;
+    }
+    .btnlook.download-wall:hover {
+      background-color: #eee;
+    }
+  </style>
+</head>
+<body>
+
+<h2>🎥 Tool tạo bài viết girlxinh - đa quốc gia</h2>
+
+<label>📸 Upload ảnh thumbnail (Imgur):</label>
+<div class="dropzone" id="dropzone">Kéo ảnh vào đây hoặc click để chọn</div>
+<div class="image-preview" id="imagePreview"></div>
+<input type="hidden" id="imgurLink" />
+
+<label>🎬 Nhập link video MP4:</label>
+<input type="text" id="videoLink" placeholder="https://example.com/video.mp4" />
+
+<label>🧍‍♀️ Tên nhân vật (có thể để trống):</label>
+<input type="text" id="characterName" placeholder="Ví dụ: Ngọc Trinh, Arisa, Lisa..." />
+
+<label>🌏 Chọn quốc gia:</label>
+<select id="country">
+  <option value="Việt Nam">Việt Nam</option>
+  <option value="Nhật Bản">Nhật Bản</option>
+  <option value="Hàn Quốc">Hàn Quốc</option>
+  <option value="Trung Quốc">Trung Quốc</option>
+  <option value="Thái Lan">Thái Lan</option>
+  <option value="Mỹ">Mỹ</option>
+</select>
+
+<label>📚 Chọn chủ đề bài viết:</label>
+<select id="topic">
+  <option value="hotgirl">Hot girl</option>
+  <option value="tiktok">TikTok girl</option>
+  <option value="dienvien">Diễn viên</option>
+  <option value="nguoimau">Người mẫu</option>
+  <option value="idol">Idol</option>
+  <option value="influencer">Người nổi tiếng</option>
+</select>
+
+<label>✍️ Phong cách viết bài:</label>
+<select id="style">
+  <option value="goi-cam">Gợi cảm, quyến rũ</option>
+  <option value="nhe-nhang">Nhẹ nhàng, giới thiệu cá nhân</option>
+</select>
+
+<button onclick="generateArticle()">📝 Tạo bài viết</button>
+
+<label>Kết quả bài viết (HTML đầy đủ):</label>
+<textarea id="resultHTML" readonly></textarea>
+
+<button onclick="copyResult()">📄 Sao chép HTML</button>
+
+<div class="loading-modal" id="loadingModal"><div class="loading-text">Đang xử lý AI...</div></div>
+
+<script>
+const clientId = '3a8be4390ef3eb8';
+const dropzone = document.getElementById('dropzone');
+const imagePreview = document.getElementById('imagePreview');
+const imgurLinkInput = document.getElementById('imgurLink');
+
+dropzone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropzone.classList.add('dragover');
+});
+dropzone.addEventListener('dragleave', e => {
+  dropzone.classList.remove('dragover');
+});
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  if(e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+});
+dropzone.addEventListener('click', () => {
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.onchange = () => {
+    if(fileInput.files.length) uploadFile(fileInput.files[0]);
+  };
+  fileInput.click();
+});
+
+function uploadFile(file) {
+  if(!file.type.startsWith('image/')) {
+    alert('Vui lòng chọn ảnh!');
+    return;
+  }
+  showLoading(true);
+  const formData = new FormData();
+  formData.append('image', file);
+
+  fetch('https://api.imgur.com/3/image', {
+    method: 'POST',
+    headers: { Authorization: 'Client-ID ' + clientId },
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    showLoading(false);
+    if(data.success) {
+      const link = data.data.link;
+      imgurLinkInput.value = link;
+      imagePreview.innerHTML = `<img src="${link}" alt="Thumbnail">`;
+    } else {
+      alert('Upload ảnh thất bại!');
+    }
+  })
+  .catch(() => {
+    showLoading(false);
+    alert('Lỗi upload ảnh!');
+  });
+}
+
+function showLoading(show) {
+  document.getElementById('loadingModal').classList.toggle('show', show);
+}
+
+function generateArticle() {
+  const img = document.getElementById('imgurLink').value.trim();
+  const video = document.getElementById('videoLink').value.trim();
+  const name = document.getElementById('characterName').value.trim();
+  const country = document.getElementById('country').value;
+  const topic = document.getElementById('topic').value;
+  const style = document.getElementById('style').value;
+
+  if(!img || !video) return alert('Vui lòng nhập ảnh và video!');
+
+  showLoading(true);
+
+  setTimeout(() => {
+    const subject = name ? name : `cô gái ${country.toLowerCase()}`;
+    let intro = '', content = '', title = '', desc = '';
+
+    if(style === 'goi-cam') {
+      const intros = [
+        `Video clip nóng bỏng và quyến rũ của ${subject} khiến người xem không thể rời mắt.`,
+        `Một bộ phim ngắn thể hiện trọn vẹn vẻ đẹp gợi cảm, cá tính của ${subject}.`,
+        `${subject} xuất hiện đầy mê hoặc trong clip mới, khoe dáng chuẩn, thần thái sắc lạnh thu hút mọi ánh nhìn.`
+      ];
+      const bodies = [
+        `Với thân hình cân đối, đường cong quyến rũ, ${subject} khiến người xem như bị thôi miên qua từng chuyển động uyển chuyển, từng ánh mắt đầy mê hoặc.`,
+        `Khung hình được đầu tư tỉ mỉ, nhấn mạnh vẻ đẹp bốc lửa và cá tính riêng biệt của ${subject}. Từng cảnh quay toát lên sự sang trọng pha chút phá cách gợi cảm.`,
+        `Clip không chỉ thu hút bởi hình ảnh bắt mắt mà còn tạo cảm giác chân thực, sống động, giúp người xem cảm nhận trọn vẹn nét đẹp độc đáo của ${subject}.`,
+        `Không chỉ ngoại hình mà phong thái tự tin, ánh mắt sắc sảo làm nên sức hút khó cưỡng, biến ${subject} thành tâm điểm của mọi ánh nhìn.`
+      ];
+      const outros = [
+        `Nếu bạn yêu thích vẻ đẹp gợi cảm và quyến rũ, không nên bỏ qua clip này.`,
+        `Video đã thu hút hàng nghìn lượt xem và chia sẻ chỉ sau vài giờ đăng tải.`,
+        `Hãy cùng chiêm ngưỡng và cảm nhận vẻ đẹp nóng bỏng của ${subject} qua từng khoảnh khắc.`
+      ];
+      intro = pick(intros);
+      content = bodies.map(p => `<p>${p}</p>`).join('') + `<p>${pick(outros)}</p>`;
+    } else {
+      const intros = [
+        `Clip nhẹ nhàng và đầy sức sống của ${subject} khiến người xem cảm thấy dễ chịu và gần gũi.`,
+        `Một đoạn video chân thật ghi lại những khoảnh khắc đời thường, giản dị của ${subject}.`,
+        `${subject} xuất hiện với nụ cười tươi tắn, vẻ đẹp trong sáng và tinh tế trong clip mới.`
+      ];
+      const bodies = [
+        `Phong cách tự nhiên và giản dị giúp ${subject} ghi điểm tuyệt đối trong mắt người xem. Đoạn video mang lại cảm giác thư thái, dịu dàng.`,
+        `Nét duyên dáng, nụ cười tỏa nắng cùng ánh mắt chân thành là điểm nhấn đặc biệt của ${subject} trong clip.`,
+        `Khung cảnh đơn giản, không cầu kỳ nhưng vẫn thể hiện trọn vẹn nét đẹp nhẹ nhàng, thuần khiết, khiến người xem cảm thấy gần gũi hơn bao giờ hết.`,
+        `Đây là lựa chọn hoàn hảo cho những ai yêu thích phong cách giản dị mà vẫn tinh tế, nhẹ nhàng, thanh lịch.`
+      ];
+      const outros = [
+        `Nếu bạn yêu thích sự chân thật và giản dị, đừng bỏ qua video này.`,
+        `Video nhận được rất nhiều lời khen ngợi vì sự gần gũi và tự nhiên của ${subject}.`,
+        `Hãy dành chút thời gian để cảm nhận vẻ đẹp nhẹ nhàng và trong sáng của ${subject} qua clip.`
+      ];
+      intro = pick(intros);
+      content = bodies.map(p => `<p>${p}</p>`).join('') + `<p>${pick(outros)}</p>`;
+    }
+
+    title = `Clip ${subject} - ${topic} ${country}`;
+    desc = `Xem video ${topic} ${country} của ${subject} đang gây chú ý trên mạng xã hội với nhiều lượt xem và bình luận.`;
+
+    const html = `
+<!-- Tiêu đề SEO -->
+<h1>${title}</h1>
+<meta name="description" content="${desc}" />
+
+<!-- Ảnh đại diện -->
+<div class="separator" style="clear: both;">
+  <a href="${img}" style="display: block; padding: 1em 0px; text-align: center;">
+    <img alt="${subject}" border="0" height="400" src="${img}" />
+  </a>
+</div>
+
+<!-- Video ẩn autoplay -->
+<div style="display: none;">
+  <div id="live-wallpaper">
+    <video class="live-wp" controlsList="nodownload" controls autoplay loop muted playsinline poster="${img}">
+      <source src="${video}" type="video/mp4" />
+      <source src="${video}" type="video/ogg" />
+      Your browser does not support the video tag.
+    </video>
+  </div>
+</div>
+
+<!-- Nội dung bài viết -->
+${intro}
+${content}
+
+<!-- Nút tải video -->
+<div class="text-center">
+  <a alt="Download Video" class="btnlook download-wall" href="${video}" style="color: black;" title="Download Video" download>
+    Download
+  </a>
+</div>
+    `.trim();
+
+    document.getElementById('resultHTML').value = html;
+    showLoading(false);
+  }, 1200);
+}
+
+function copyResult() {
+  const textarea = document.getElementById('resultHTML');
+  textarea.select();
+  document.execCommand('copy');
+  alert('✅ Đã sao chép HTML!');
+}
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+</script>
+
+</body>
+</html>
